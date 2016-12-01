@@ -5,7 +5,8 @@ import warnings
 import scipy.io as sio
 from keras.models import Sequential
 from keras.layers.wrappers import TimeDistributed
-from keras.layers import LSTM, Dense, Convolution1D
+from keras.layers import LSTM, Dense, Convolution1D, Activation
+from keras.layers.normalization import BatchNormalization
 import time
 import random
 import string
@@ -30,10 +31,13 @@ print "Building model: input->LSTM:1024->Dense:513=output :: optimizer=RMSprop,l
 # define sequential model
 model = Sequential()
 # the 1st LSTM layer
+model.add(BatchNormalization(input_shape = (50,513), epsilon=1e-6, weights=None))
 model.add(LSTM(input_dim=513, input_length=None, output_dim=1026, return_sequences=True))
+
 # output layer
-model.add(TimeDistributed(Dense(output_dim=1026)))
-model.compile(optimizer='RMSprop', loss=my_loss)
+model.add(TimeDistributed(Dense(output_dim=513)))
+model.add(Activation("sigmoid"))
+model.compile(optimizer='RMSprop', loss='mse')
 
 train_list = ni.prep_CHiME2_lists(base_dir, mask_type='ideal_amplitude')
 print len(train_list)
