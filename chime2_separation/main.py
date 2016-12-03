@@ -13,6 +13,8 @@ import string
 import nilib as ni
 import tensorflow as tf
 import h5py
+from keras import backend as K
+
 base_dir = '/Users/Near/Desktop/mask/'
 save_dir = '/Users/Near/Desktop/exp/'
 
@@ -23,27 +25,29 @@ run =0
 
 def my_loss(y_pred, y_true):
     #0 is clean, 1 is noisy
-    split0, split1 = tf.split(2, 2, y_true)
+    mask, noisy = tf.split(2, 2, y_true)
     split2, split3 = tf.split(2,2,y_pred)
-    return tf.reduce_mean(tf.square(split2*split1 - split0*split1))
+    # return tf.reduce_mean(tf.square(split2*split1 - split0*split1))
+    return K.mean(K.square(split2 * noisy - mask*noisy),axis=-1)
 
-print "Building model: input->LSTM:1024->Dense:513=output :: optimizer=RMSprop,loss=binary_crossentropy"
+print "Building model: input->LSTM:1024->Dense:1026=output :: optimizer=RMSprop,loss= my_loss"
 # define sequential model
 model = Sequential()
 # the 1st LSTM layer
-model.add(BatchNormalization(input_shape = (50,513), epsilon=1e-6, weights=None))
+model.add(BatchNormalization(input_shape= (50,513), mode=0,axis=2))
+#model.add(BatchNormalization(input_shape = (50,513), epsilon=1e-6, weights=None))
+#model.add(LSTM(input_dim=513, input_length=None, output_dim=513, return_sequences=True))
 model.add(LSTM(input_dim=513, input_length=None, output_dim=1026, return_sequences=True))
-
 # output layer
-model.add(TimeDistributed(Dense(output_dim=513)))
+model.add(TimeDistributed(Dense(output_dim=1026)))
 model.add(Activation("sigmoid"))
-model.compile(optimizer='RMSprop', loss='mse')
+model.compile(optimizer='RMSprop', loss=my_loss)
 
 train_list = ni.prep_CHiME2_lists(base_dir, mask_type='ideal_amplitude')
 print len(train_list)
 num_proc_files =0
 start_from_file = 0
-while num_proc_files<len(train_list):
+while num_proc_files<200:
     print "Running experiment."
     start_time = time.strftime('%Y-%m-%d %T')
     print start_time
@@ -52,7 +56,7 @@ while num_proc_files<len(train_list):
     newexp_folder_path = save_dir + '/' + "exp_" + start_time + '/'
     os.makedirs(newexp_folder_path)
 
-    keras_inputs, keras_targets, num_proc_files = ni.prep_data_SpMa(train_list, input_shape=(1000, 50, 513), start=start_from_file)
+    keras_inputs, keras_targets, num_proc_files = ni.prep_data(train_list, input_shape=(200, 50, 513), start=start_from_file)
     start_from_file = start_from_file + num_proc_files
     print keras_inputs.shape, num_proc_files
     nb_epoch = 10
