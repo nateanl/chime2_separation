@@ -1,7 +1,7 @@
 import os
 import sys
 
-def prep_test_lists(base_dir):
+def prep_train_lists(base_dir):
     # given directories, creates lists of all the files (with paths) that will be used by keras
     # (once fed to  pred_data_xyz)
     # this function ensure that the filenames match to ensure proper order when fitting model
@@ -14,3 +14,7 @@ def prep_test_lists(base_dir):
     # build file lists
     train_list = [path+'/'+file for path,_,files in sorted(os.walk(base_dir)) for file in sorted(files) if (file.endswith('.mat'))]
     return train_list
+
+def prep_test_lists(base_dir):
+    test_list = [(path + '/' + file)[len(base_dir):] for path, _, files in sorted(os.walk(base_dir)) for file in sorted(files) if (file.endswith('.mat'))]
+    return test_list
