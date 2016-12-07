@@ -5,7 +5,7 @@ import warnings
 import scipy.io as sio
 from keras.models import Sequential
 from keras.layers.wrappers import TimeDistributed
-from keras.layers import LSTM, Dense, Convolution1D, Activation,Bidirectional
+from keras.layers import LSTM, Dense, Convolution1D, Activation,Reshape
 from keras.layers.normalization import BatchNormalization
 import time
 import random
@@ -16,10 +16,9 @@ tf.python.control_flow_ops = tf
 import h5py
 from keras import backend as K
 base_dir = '/scratch/near/mask/'
-mask_type = 'ideal_amplitude'
-loss_type ='binary_crossentropy'
-layer = 'bilstm'
-save_dir = '/scratch/near/exp_'+layer+'_'+loss_type+'_'+mask_type+'/'
+mask_type = 'phase_sensitive'
+loss_type ='mse'
+save_dir = '/scratch/near/exp_'+mask_type+'_'+ loss_type +'_'+mask_type+'/'
 # print experiment time for logging
 os.makedirs(save_dir)
 run =0
@@ -28,23 +27,22 @@ def my_loss(y_pred, y_true):
     #0 is clean, 1 is noisy
     mask, noisy = tf.split(2, 2, y_true)
     split2, split3 = tf.split(2,2,y_pred)
-    noisy = np.power(noisy/20,10)
     # return tf.reduce_mean(tf.square(split2*split1 - split0*split1))
     return K.mean(K.square(split2 * noisy - mask*noisy),axis=-1)
 
+print "Building model: input->LSTM:1024->Dense:1026=output :: optimizer=RMSprop,loss= my_loss"
+# define sequential model
 print "Building model: input->LSTM:1024->Dense:1026=output :: optimizer=RMSprop,loss= mse"
 # define sequential model
 model = Sequential()
 # the 1st LSTM layer
 model.add(BatchNormalization(batch_input_shape = (None,None,513), mode=0,axis=2))
 #model.add(BatchNormalization(input_shape = (50,513), epsilon=1e-6, weights=None))
-#model.add(LSTM(input_dim=513, input_length=None, output_dim=513, return_sequences=True))
-model.add(Bidirectional(LSTM(input_dim=513, input_length=None, output_dim=1026, return_sequences=True)))
-#model.add(Bidirectional(LSTM(input_dim=1026, input_length=None, output_dim=1026, return_sequences=True)))
-# output layer
+model.add(LSTM(input_dim=513, input_length=None, output_dim=513, return_sequences=True))
+
 model.add(TimeDistributed(Dense(output_dim=1026)))
-model.add(Activation("sigmoid"))
-model.compile(optimizer='RMSprop', loss='binary_crossentropy')
+model.add(Activation("tanh"))
+model.compile(optimizer='RMSprop', loss=loss_type)
 
 train_list = ni.prep_CHiME2_lists(base_dir, mask_type=mask_type)
 print len(train_list)

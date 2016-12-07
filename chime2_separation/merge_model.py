@@ -5,8 +5,9 @@ import warnings
 import scipy.io as sio
 from keras.models import Sequential
 from keras.layers.wrappers import TimeDistributed
-from keras.layers import LSTM, Dense, Convolution1D, Activation,Bidirectional
+from keras.layers import LSTM, Dense, Convolution1D, Activation,Bidirectional,Merge
 from keras.layers.normalization import BatchNormalization
+from keras.layers.core import Lambda
 import time
 import random
 import string
@@ -15,13 +16,17 @@ import tensorflow as tf
 tf.python.control_flow_ops = tf
 import h5py
 from keras import backend as K
-base_dir = '/scratch/near/mask/'
+# base_dir = '/scratch/near/mask/'
 mask_type = 'ideal_amplitude'
-loss_type ='binary_crossentropy'
-layer = 'bilstm'
-save_dir = '/scratch/near/exp_'+layer+'_'+loss_type+'_'+mask_type+'/'
-# print experiment time for logging
-os.makedirs(save_dir)
+# loss_type ='binary_crossentropy'
+# layer = 'bilstm'
+# save_dir = '/scratch/near/exp_'+layer+'_'+loss_type+'_'+mask_type+'/'
+# # print experiment time for logging
+# os.makedirs(save_dir)
+
+base_dir = '/Users/Near/Desktop/mask/'
+save_dir = '/Users/Near/Desktop/exp/'
+
 run =0
 
 def my_loss(y_pred, y_true):
@@ -34,23 +39,35 @@ def my_loss(y_pred, y_true):
 
 print "Building model: input->LSTM:1024->Dense:1026=output :: optimizer=RMSprop,loss= mse"
 # define sequential model
+m1 = Sequential()
+# the identify layer
+m1.add(Lambda(lambda x: x, input_shape=(None,513)))
+
+m2 = Sequential()
+#m2.add(Lambda(lambda x: 20.0*np.log10(x), input_shape=(None,513)))
+m2.add(BatchNormalization(batch_input_shape = (None,None,513), mode=0,axis=2))
+m2.add(Bidirectional(LSTM(input_dim=513, input_length=None, output_dim=513, return_sequences=True)))
+m2.add(Bidirectional(LSTM(input_dim=513, input_length=None, output_dim=513, return_sequences=True)))
+m2.add(TimeDistributed(Dense(output_dim=513)))
+m2.add(Activation("sigmoid"))
+merged = Merge([m2, m1], mode='concat')
 model = Sequential()
-# the 1st LSTM layer
-model.add(BatchNormalization(batch_input_shape = (None,None,513), mode=0,axis=2))
+model.add(merged)
+model.compile(optimizer='RMSprop', loss='binary_crossentropy')
 #model.add(BatchNormalization(input_shape = (50,513), epsilon=1e-6, weights=None))
 #model.add(LSTM(input_dim=513, input_length=None, output_dim=513, return_sequences=True))
-model.add(Bidirectional(LSTM(input_dim=513, input_length=None, output_dim=1026, return_sequences=True)))
+
 #model.add(Bidirectional(LSTM(input_dim=1026, input_length=None, output_dim=1026, return_sequences=True)))
 # output layer
-model.add(TimeDistributed(Dense(output_dim=1026)))
-model.add(Activation("sigmoid"))
-model.compile(optimizer='RMSprop', loss='binary_crossentropy')
+
+
+
 
 train_list = ni.prep_CHiME2_lists(base_dir, mask_type=mask_type)
 print len(train_list)
 num_proc_files =0
 start_from_file = 0
-while num_proc_files<1000:
+while start_from_file<len(train_list):
     print "Running experiment."
     start_time = time.strftime('%Y-%m-%d %T')
     print start_time
@@ -62,10 +79,10 @@ while num_proc_files<1000:
     keras_inputs, keras_targets, num_proc_files = ni.prep_data(train_list, input_shape=(500, 50, 513), start=start_from_file)
     start_from_file = start_from_file + num_proc_files
     print keras_inputs.shape, num_proc_files
-    nb_epoch = 50
+    nb_epoch = 10
     batch_size = 128
     print "Beginning fit: nb_epoch={0}, batch_size={1}".format(nb_epoch, batch_size)
-    hist = model.fit(keras_inputs, keras_targets, nb_epoch=nb_epoch, batch_size= batch_size, verbose=2, shuffle=True)
+    hist = model.fit([keras_inputs,keras_inputs], keras_targets, nb_epoch=nb_epoch, batch_size= batch_size, verbose=2, shuffle=True)
 
     # save model to file every 1 run
     model_filename = "run_{0:04d}_model_architecture.json".format(run)

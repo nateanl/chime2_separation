@@ -38,13 +38,14 @@ model = Sequential()
 model.add(BatchNormalization(input_shape= (50,513), mode=0,axis=2))
 #model.add(BatchNormalization(input_shape = (50,513), epsilon=1e-6, weights=None))
 #model.add(LSTM(input_dim=513, input_length=None, output_dim=513, return_sequences=True))
-model.add(Bidirectional(LSTM(input_dim=513, input_length=None, output_dim=1026, return_sequences=True)))
+model.add(Bidirectional(LSTM(input_dim=513, input_length=None, output_dim=1026, return_sequences=True),merge_mode='concat'))
+model.add(Bidirectional(LSTM(input_dim=513, input_length=None, output_dim=1026, return_sequences=True),merge_mode='concat'))
 #model.add(Bidirectional(LSTM(input_dim=1026, input_length=None, output_dim=1026, return_sequences=True)))
 # output layer
 model.add(TimeDistributed(Dense(output_dim=1026)))
 model.add(Activation("sigmoid"))
 sgd = SGD(lr=0.01, decay=1e-6, momentum=0.9, nesterov=True)
-model.compile(optimizer=sgd, loss='mse')
+model.compile(optimizer='RMSprop', loss='binary_crossentropy')
 
 train_list = ni.prep_CHiME2_lists(base_dir, mask_type='ideal_amplitude')
 print len(train_list)
@@ -59,7 +60,7 @@ while num_proc_files<200:
     newexp_folder_path = save_dir + '/' + "exp_" + start_time + '/'
     os.makedirs(newexp_folder_path)
 
-    keras_inputs, keras_targets, num_proc_files = ni.prep_data(train_list, input_shape=(200, 50, 513), start=start_from_file)
+    keras_inputs, keras_targets, num_proc_files = ni.prep_data_log(train_list, input_shape=(200, 50, 513), start=start_from_file)
     start_from_file = start_from_file + num_proc_files
     print keras_inputs.shape, num_proc_files
     nb_epoch = 10
