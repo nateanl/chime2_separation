@@ -29,7 +29,7 @@ for f = 1:length(testlist)
     audiowrite(predfile,y,fs);
     options.destDir = '/Users/Near/Desktop/save/peass/';
     options.segmentationFactor = 1; % increase this integer if you experienced "out of memory" problems
-    res = PEASS_ObjectiveMeasure({testfile},predfile,options);
+    res = PEASS_ObjectiveMeasure({predfile},testfile,options);
     fprintf(' - SDR = %.1f dB\n - ISR = %.1f dB\n - SIR = %.1f dB\n - SAR = %.1f dB\n',...
     res.SDR,res.ISR,res.SIR,res.SAR);
     sdrr = sdrr+ res.SDR;

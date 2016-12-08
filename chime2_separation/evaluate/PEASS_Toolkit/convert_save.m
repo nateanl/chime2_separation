@@ -19,6 +19,6 @@ function x = convert_save(spect,nsampl)
                 x(j,t*wlen/2+1:t*wlen/2+wlen)=x(j,t*wlen/2+1:t*wlen/2+wlen)+frame.'.*win./swin(t*wlen/2+1:t*wlen/2+wlen);
             end
     end
-    x=x(:,wlen/4+1:wlen/4+nsampl);
+    %x=x(:,wlen/4+1:wlen/4+nsampl);
     x = x.';
     return;
